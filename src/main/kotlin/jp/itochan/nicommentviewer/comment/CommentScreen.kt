@@ -6,7 +6,11 @@ import androidx.compose.material.Button
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import jp.itochan.nicommentviewer.api.client.NiClient
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -14,15 +18,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun CommentScreen() {
     Surface {
-        var url by remember { mutableStateOf("") }
+        var channelId by remember { mutableStateOf("") }
         Column {
             TextField(
-                value = url,
-                onValueChange = { url = it }
+                value = channelId,
+                onValueChange = { channelId = it }
             )
             Button(onClick = {
                 GlobalScope.launch {
-                    NiClient.watch(url)
+                    val webSocketUrl = NiClient.getWebSocketUrl(channelId)
+                    webSocketUrl?.let { NiClient.watch(it) }
                 }
             }) {
                 Text(text = "Get")

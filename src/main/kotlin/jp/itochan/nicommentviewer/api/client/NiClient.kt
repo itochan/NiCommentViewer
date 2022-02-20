@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.features.websocket.WebSockets
 import io.ktor.client.features.websocket.webSocket
+import io.ktor.client.request.get
 import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.readText
 import io.ktor.http.cio.websocket.send
@@ -26,6 +27,17 @@ object NiClient {
 
     private val client = HttpClient(CIO) {
         install(WebSockets)
+    }
+
+    suspend fun getWebSocketUrl(channelId: String): String? {
+        val response = client.get<String>("https://live.nicovideo.jp/watch/$channelId")
+        val dataProps = "<script id=\"embedded-data\".+data-props=\"(.+)\"".toRegex()
+            .find(response)?.groupValues?.get(1)?.replace("&quot;", "\"")?.let {
+                Json.decodeFromString<JsonObject>(it)
+            } ?: return null
+        return dataProps.get("site")?.jsonObject
+            ?.get("relive")?.jsonObject
+            ?.get("webSocketUrl")?.jsonPrimitive?.content
     }
 
     suspend fun watch(url: String) {
