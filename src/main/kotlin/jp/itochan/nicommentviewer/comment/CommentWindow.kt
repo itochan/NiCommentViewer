@@ -69,7 +69,7 @@ fun CommentScreen(
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            Row {
+            Row(modifier = Modifier.padding(8.dp)) {
                 TextField(
                     value = channelId,
                     onValueChange = { channelId = it }
@@ -92,7 +92,8 @@ fun CommentScreen(
                 modifier = Modifier.fillMaxSize()
             ) {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxSize()
+                        .padding(8.dp),
                     state = commentsListState
                 ) {
                     itemsIndexed(comments) { _, item ->
