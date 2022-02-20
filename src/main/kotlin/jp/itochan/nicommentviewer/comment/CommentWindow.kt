@@ -21,12 +21,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.rememberWindowState
 import jp.itochan.nicommentviewer.api.client.NiClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
@@ -34,8 +36,15 @@ import kotlinx.coroutines.launch
 fun CommentWindow(
     onCloseRequest: () -> Unit
 ) {
+    val windowState = rememberWindowState().apply {
+        size = DpSize(width = 400.dp, height = Dp.Unspecified)
+    }
     var title by remember { mutableStateOf("NiCommentViewer") }
-    Window(onCloseRequest = onCloseRequest, title = title) {
+    Window(
+        onCloseRequest = onCloseRequest,
+        state = windowState,
+        title = title
+    ) {
         MaterialTheme {
             CommentScreen(
                 onChangeChannelId = { title = "NiCommentViewer: $it" }
