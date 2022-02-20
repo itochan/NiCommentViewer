@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.material.TextField
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Window
 import jp.itochan.nicommentviewer.api.client.NiClient
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +31,23 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 
 @Composable
-fun CommentScreen() {
+fun CommentWindow(
+    onCloseRequest: () -> Unit
+) {
+    var title by remember { mutableStateOf("NiCommentViewer") }
+    Window(onCloseRequest = onCloseRequest, title = title) {
+        MaterialTheme {
+            CommentScreen(
+                onChangeChannelId = { title = "NiCommentViewer: $it" }
+            )
+        }
+    }
+}
+
+@Composable
+fun CommentScreen(
+    onChangeChannelId: (String) -> Unit
+) {
     Surface {
         var channelId by remember { mutableStateOf("") }
         val comments = remember { mutableStateListOf<String>() }
@@ -42,7 +60,8 @@ fun CommentScreen() {
                 )
                 Button(
                     onClick = {
-                        GlobalScope.launch {
+                        onChangeChannelId(channelId)
+                        CoroutineScope(Dispatchers.IO).launch {
                             NiClient.connect(channelId).collect { (date, comment) ->
                                 comments.add("$date $comment")
                             }
@@ -71,5 +90,7 @@ fun CommentScreen() {
 @Preview
 @Composable
 fun CommentScreenPreview() {
-    CommentScreen()
+    CommentScreen(
+        onChangeChannelId = {}
+    )
 }
