@@ -9,6 +9,10 @@ import io.ktor.http.cio.websocket.Frame
 import io.ktor.http.cio.websocket.readText
 import io.ktor.http.cio.websocket.send
 import jp.itochan.nicommentviewer.api.response.Watch
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,7 +33,18 @@ object NiClient {
         install(WebSockets)
     }
 
-    suspend fun getWebSocketUrl(channelId: String): String? {
+    suspend fun connect(channelId: String): Flow<Pair<String, String>> = flow {
+        val webSocketUrl = getWebSocketUrl(channelId) ?: return@flow
+        watch(webSocketUrl).collect {
+            when (it.type) {
+                "room" -> connectMessages(it).collect { comment ->
+                    emit(comment)
+                }
+            }
+        }
+    }
+
+    private suspend fun getWebSocketUrl(channelId: String): String? {
         val response = client.get<String>("https://live.nicovideo.jp/watch/$channelId")
         val dataProps = "<script id=\"embedded-data\".+data-props=\"(.+)\"".toRegex()
             .find(response)?.groupValues?.get(1)?.replace("&quot;", "\"")?.let {
@@ -40,7 +55,7 @@ object NiClient {
             ?.get("webSocketUrl")?.jsonPrimitive?.content
     }
 
-    suspend fun watch(url: String) {
+    private suspend fun watch(url: String): Flow<Watch> = flow {
         client.webSocket(urlString = url) {
             send(
                 Json.encodeToString(
@@ -83,16 +98,17 @@ object NiClient {
                         send(Json.encodeToString(Watch(type = "pong")))
                         send(Json.encodeToString(Watch(type = "keepSeat")))
                     }
-                    "room" -> connectMessages(message)
+                    else -> emit(message)
                 }
             }
         }
     }
 
-    private suspend fun connectMessages(message: Watch) {
-        val jsonObject = message.data?.jsonObject ?: return
-        val messageServerUri = jsonObject["messageServer"]?.jsonObject?.get("uri")?.jsonPrimitive?.content ?: return
-        val threadId = jsonObject["threadId"]?.jsonPrimitive?.content ?: return
+    private fun connectMessages(message: Watch): Flow<Pair<String, String>> {
+        val jsonObject = message.data?.jsonObject ?: return emptyFlow()
+        val messageServerUri = jsonObject["messageServer"]?.jsonObject
+            ?.get("uri")?.jsonPrimitive?.content ?: return emptyFlow()
+        val threadId = jsonObject["threadId"]?.jsonPrimitive?.content ?: return emptyFlow()
         // val threadKey = jsonObject["yourPostKey"]?.jsonPrimitive?.content ?: return
 
         val pingMessage = buildJsonArray {
@@ -122,18 +138,22 @@ object NiClient {
             }
         }
 
-        client.webSocket(urlString = messageServerUri) {
-            send(Json.encodeToString(pingMessage))
+        return flow {
+            client.webSocket(urlString = messageServerUri) {
+                send(Json.encodeToString(pingMessage))
 
-            while (true) {
-                val responseText = incoming.receive() as? Frame.Text
-                val chatResponse = responseText?.readText()?.let { Json.decodeFromString<JsonObject>(it) } ?: continue
-                val chat = chatResponse["chat"]?.jsonObject ?: continue
-                val date = chat["date"]?.jsonPrimitive?.content ?: continue
+                while (true) {
+                    val responseText = incoming.receive() as? Frame.Text
+                    val chatResponse =
+                        responseText?.readText()?.let { Json.decodeFromString<JsonObject>(it) } ?: continue
+                    val chat = chatResponse["chat"]?.jsonObject ?: continue
+                    val date = chat["date"]?.jsonPrimitive?.content ?: continue
 
-                val dateString = SimpleDateFormat("HH:mm:ss").format(Date(date.toLong() * 1000))
-                val comment = chat["content"]?.jsonPrimitive?.content ?: continue
-                println("$dateString $comment")
+                    val dateString = SimpleDateFormat("HH:mm:ss").format(Date(date.toLong() * 1000))
+                    val comment = chat["content"]?.jsonPrimitive?.content ?: continue
+                    println("$dateString $comment")
+                    emit(dateString to comment)
+                }
             }
         }
     }
