@@ -1,14 +1,17 @@
 package jp.itochan.nicommentviewer.comment
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.VerticalScrollbar
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -20,6 +23,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
@@ -58,10 +62,13 @@ fun CommentScreen(
     onChangeChannelId: (String) -> Unit
 ) {
     Surface {
-        var channelId by remember { mutableStateOf("") }
         val comments = remember { mutableStateListOf<String>() }
         val commentsListState = rememberLazyListState()
-        Column(modifier = Modifier.fillMaxSize()) {
+        var channelId by remember { mutableStateOf("") }
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
             Row {
                 TextField(
                     value = channelId,
@@ -81,16 +88,25 @@ fun CommentScreen(
                     Text(text = "Get")
                 }
             }
-            LazyColumn(
-                modifier = Modifier.fillMaxWidth(),
-                state = commentsListState
+            Box(
+                modifier = Modifier.fillMaxSize()
             ) {
-                itemsIndexed(comments) { _, item ->
-                    Text(text = item)
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    state = commentsListState
+                ) {
+                    itemsIndexed(comments) { _, item ->
+                        Text(text = item)
+                    }
+                    CoroutineScope(Dispatchers.Main).launch {
+                        commentsListState.scrollToItem(comments.size)
+                    }
                 }
-                CoroutineScope(Dispatchers.Main).launch {
-                    commentsListState.scrollToItem(comments.size)
-                }
+                VerticalScrollbar(
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                        .fillMaxHeight(),
+                    adapter = rememberScrollbarAdapter(scrollState = commentsListState)
+                )
             }
         }
     }
